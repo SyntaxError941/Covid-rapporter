@@ -1,0 +1,515 @@
+#install.packages("readxl")
+#install.packages("dplyr")
+#install.packages("stringr)
+#install.packages("scales")
+#install.packages("flextable")
+#install.packages("officer")
+library(readxl)
+library(dplyr)
+library(stringr)
+
+#Läser in excelfilen. Kom ihåg ändra i filnamnet!
+
+Underlag_Onsdag<- read_excel("Q:/7. Personliga mappar/Magnus Hansson/Automatisering och underlag/Underlag_Ons_04.xlsx")
+Underlag_Torsdag <- read_excel("Q:/7. Personliga mappar/Magnus Hansson/Automatisering och underlag/Underlag_Tors_05.xlsx")
+
+lista_underlag<-list(Underlag_Onsdag=Underlag_Onsdag,Underlag_Torsdag=Underlag_Torsdag)
+
+
+bearbetning<-function(x)
+{Underlag<-x
+
+#Om orden "X regioner" och "Förstärkningsläge/Stabsläge/normalläge" inte står på samma rad X regioner med
+#"Förstärkningsläge/Stabsläge/normalläge" om det står en, två eller tre rader nedanför  
+
+Underlag<-Underlag%>%mutate(`Rapport ID: PK-SV`=
+                      ifelse(str_detect(`Rapport ID: PK-SV`,"\\d+ regioner") & !str_detect(`Rapport ID: PK-SV`,                                         "katastrofläge|förstärkningsläge|stabsläge|normalläge") & str_detect(lead(`Rapport ID: PK-SV`),                          		"katastrofläge|förstärkningsläge|stabsläge|normalläge"), 
+                             paste(`Rapport ID: PK-SV`,lead(`Rapport ID: PK-SV`)),
+                             ifelse(str_detect(`Rapport ID: PK-SV`,"\\d+ regioner") & !str_detect(`Rapport ID: PK-SV`,                                                           "katastrofläge|förstärkningsläge|stabsläge|normalläge") & str_detect(lead(`Rapport ID: PK-SV`,2),                      "katastrofläge|förstärkningsläge|stabsläge|normalläge"), 
+                                    paste(`Rapport ID: PK-SV`,lead(`Rapport ID: PK-SV`),2),
+                                    ifelse(str_detect(`Rapport ID: PK-SV`,"\\d+ regioner") & !str_detect(`Rapport ID: PK-SV`,                                                           "katastrofläge|förstärkningsläge|stabsläge|normalläge") & str_detect(lead(`Rapport ID: PK-SV`,3),                      "katastrofläge|förstärkningsläge|stabsläge|normalläge"), 
+                                           paste(`Rapport ID: PK-SV`,lead(`Rapport ID: PK-SV`),3),`Rapport ID: PK-SV`
+                                    ))))
+
+# Om frasen "Kort sikt (24-72 timmar)" förekommer en, två, tre eller fyra rader under en annan rad, lägger vi till den frasen till raden. 
+
+Underlag<-Underlag%>%mutate(
+    `Rapport ID: PK-SV`=ifelse(str_detect(lead(`Rapport ID: PK-SV`,1),"Kort sikt \\(24-72 timmar\\)")|
+                                   str_detect(lead(`Rapport ID: PK-SV`,2),"Kort sikt \\(24-72 timmar\\)")|
+                                   str_detect(lead(`Rapport ID: PK-SV`,3),"Kort sikt \\(24-72 timmar\\)")|
+				   str_detect(lead(`Rapport ID: PK-SV`,4),"Kort sikt \\(24-72 timmar\\)"),
+                               paste("Kort sikt",`Rapport ID: PK-SV`),`Rapport ID: PK-SV`))
+
+# Om frasen "Kort sikt (10-15 dagar)" förekommer en, två, tre eller fyra rader under en annan rad, lägger vi till den frasen till raden. 
+
+Underlag<-Underlag%>%mutate(
+    `Rapport ID: PK-SV`=ifelse((str_detect(lead(`Rapport ID: PK-SV`,1),"Lång sikt \\(10-15 dagar\\)") & !str_detect(`Rapport ID: PK-SV`,"Kort"))|
+                            	(str_detect(lead(`Rapport ID: PK-SV`,2),"Lång sikt \\(10-15 dagar\\)") &!str_detect(`Rapport ID: PK-SV`,"Kort"))|
+                             	(str_detect(lead(`Rapport ID: PK-SV`,3),"Lång sikt \\(10-15 dagar\\)") &!str_detect(`Rapport ID: PK-SV`,"Kort"))|
+				(str_detect(lead(`Rapport ID: PK-SV`,4),"Lång sikt \\(10-15 dagar\\)") &!str_detect(`Rapport ID: PK-SV`,"Kort"))|
+				(str_detect(lead(`Rapport ID: PK-SV`,5),"Lång sikt \\(10-15 dagar\\)") &!str_detect(`Rapport ID: PK-SV`,"Kort"))|
+				(str_detect(lead(`Rapport ID: PK-SV`,6),"Lång sikt \\(10-15 dagar\\)") &!str_detect(`Rapport ID: PK-SV`,"Kort")),
+                               paste("Lång sikt",`Rapport ID: PK-SV`),`Rapport ID: PK-SV`))
+
+#Vi behåller enbart de rader i materialet som innehåller nyckelfraser relaterade till våra värden.
+
+Underlag<-Underlag%>%filter(str_detect(`Rapport ID: PK-SV`,"^Senast.*$") |
+                               str_detect(`Rapport ID: PK-SV`,"^.*covid-19-patienter inlagda i slutenvården.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*av intensivvårdsavdelningarna har uppdaterat.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*Disponibla IVA-vårdplatser med respirator: .+.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*Belagda IVA-vårdplatser med respirator: .+.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*IVA-patienter med covid-19, vilket motsvarar.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*icke-belagda IVA-platser, vilket motsvarar.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner har IVA-patienter med covid-19.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner har 10-20% ledig.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner har mindre än 10%.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*kritisk.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*allvarlig.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*betydande.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner.*normalläge.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner.*stabsläge.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*regioner.*förstärkningsläge.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*kommuner har rapporterat.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*kommuner rapporterar.*$")|
+                               str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} smittade brukare.*$")|
+				str_detect(`Rapport ID: PK-SV`,"^.*?sikt.*?förbättring.*$")|
+				str_detect(`Rapport ID: PK-SV`,"^.*?sikt.*?försämring.*$"))
+
+# Vi filtrerar bort alla dubblettvärden ur vårt material. 
+
+Underlag<-unique(Underlag)
+
+# Vi plockar ut värdesiffrorna och sätter i en annan kolumn. 
+
+Underlag<-Underlag%>%mutate(värde=
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,".*\\d{4}-\\d{2}-\\d{2}.*"),
+                str_replace(`Rapport ID: PK-SV`,".*(\\d{4}-\\d{2}-\\d{2}).*","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,".*\\d{1,} \\(\\d{1,}\\).*inlagda i slutenvården.*"),
+                str_replace(`Rapport ID: PK-SV`,".*?(\\d{1,} \\(\\d{1,}\\)).*inlagda i slutenvården.*","\\1"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,}% av intensivvårdsavdelningarna har uppdaterat.*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}\\%) av intensivvårdsavdelningarna har uppdaterat.*","\\1"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?Disponibla IVA-vårdplatser.*?\\d{1,} \\(\\d{1,}\\).*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Disponibla IVA-vårdplatser.*?(\\d{1,} \\(\\d{1,}\\)).*","\\1"), ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?Belagda IVA-vårdplatser.*?\\d{1,} \\(\\d{1,}\\).*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Belagda IVA-vårdplatser.*?(\\d{1,} \\(\\d{1,}\\)).*","\\1"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) IVA-patienter med covid-19.*."),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) IVA-patienter med covid-19.*.","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?finns \\d{1,} icke-belagda.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?finns (\\d{1,}) icke-belagda.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har IVA-patienter.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har IVA-patienter.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har 10-20%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har 10-20%.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har mindre än 10%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har mindre än 10%.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat kritisk.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat kritisk.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat allvarlig.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat allvarlig.*$","\\1"),
+ifelse(  
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat betydande.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat betydande.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,}.*regioner.*normalläge.*\\(\\d{1,}\\)$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}).*regioner.*normalläge.*? (\\(\\d{1,}\\))$","\\1 \\2"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,}.*regioner.*stabsläge.*\\(\\d{1,}\\)$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}).*regioner.*stabsläge.*? (\\(\\d{1,}\\))$","\\1 \\2"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,}.*regioner.*förstärkningsläge.*\\(\\d{1,}\\)$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}).*regioner.*förstärkningsläge.*? (\\(\\d{1,}\\))$","\\1 \\2"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} av 290 \\(\\d{1,}%\\) kommuner har rapporterat.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) av 290 (\\(\\d{1,}%\\)) kommuner har rapporterat.*$","\\1 \\2"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} kommuner rapporterar 2-4%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) kommuner rapporterar 2-4%.*$","\\1"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} smittade brukare \\(\\d{1,}\\).*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) smittade brukare (\\(\\d{1,}\\)).*$","\\1 \\2"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?sikt.*?(\\d{1,}) reg.*$"),
+		str_replace(`Rapport ID: PK-SV`,"^.*?sikt.*?(\\d{1,}) reg.*$","\\1"),`Rapport ID: PK-SV`
+
+)))))))))))))))))))))
+
+#Vi döper om vår vänstra kolumn till vettiga variabelnamn, utan värdesiffror.
+
+Underlag<-Underlag%>%mutate(`Rapport ID: PK-SV`=
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,".*\\d{4}-\\d{2}-\\d{2}.*"),
+                str_replace(`Rapport ID: PK-SV`,".*(\\d{4}-\\d{2}-\\d{2}).*","Onsdagens datum"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,".*\\d{1,} \\(\\d{1,}\\).*inlagda i slutenvården.*"),
+                str_replace(`Rapport ID: PK-SV`,".*?(\\d{1,} \\(\\d{1,}\\)).*inlagda i slutenvården.*","Antal patienter i slutenvård exkl. IVA"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,}% av intensivvårdsavdelningarna har uppdaterat.*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}\\%) av intensivvårdsavdelningarna har uppdaterat.*","Andel inrapporterade IVA"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?Disponibla IVA-vårdplatser.*?\\d{1,} \\(\\d{1,}\\).*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Disponibla IVA-vårdplatser.*?(\\d{1,} \\(\\d{1,}\\)).*","Disponibla IVA-platser"), ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?Belagda IVA-vårdplatser.*?\\d{1,} \\(\\d{1,}\\).*"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Belagda IVA-vårdplatser.*?(\\d{1,} \\(\\d{1,}\\)).*","Belagda IVA-platser"), 
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) IVA-patienter med covid-19.*."),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) IVA-patienter med covid-19.*.","Covidpatienter_IVA"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?finns \\d{1,} icke-belagda.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?finns (\\d{1,}) icke-belagda.*$","Icke-belagda IVA"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har IVA-patienter.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har IVA-patienter.*$","Antal regioner COVID-patienter IVA"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har 10-20%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har 10-20%.*$","Antal regioner 10-20%"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har mindre än 10%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har mindre än 10%.*$","Antal regioner <10%"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat kritisk.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat kritisk.*$","Regioner kritisk påverkan"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat allvarlig.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat allvarlig.*$","Regioner allvarlig påverkan"),
+ifelse(  
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} \\(\\d{1,}\\) regioner har rapporterat betydande.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,} \\(\\d{1,}\\)) regioner har rapporterat betydande.*$","Regioner betydande påverkan"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?regioner.*?normalläge.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?regioner.*?normalläge.*$","Regioner normalläge"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?regioner.*?stabsläge.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?regioner.*?stabsläge.*$","Regioner stabsläge"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?regioner.*?förstärkningsläge.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?regioner.*?förstärkningsläge.*$","Regioner förstärkningsläge"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} av 290 \\(\\d{1,}%\\) kommuner har rapporterat.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) av 290 (\\(\\d{1,}%\\)) kommuner har rapporterat.*$","Antal inrapporterade kommuner"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} kommuner rapporterar 2-4%.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) kommuner rapporterar 2-4%.*$","Antal_kommuner_mellan_2_4_procent"),
+ifelse(
+                str_detect(`Rapport ID: PK-SV`,"^.*?\\d{1,} smittade brukare \\(\\d{1,}\\).*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?(\\d{1,}) smittade brukare (\\(\\d{1,}\\)).*$","Antal_smittade_brukare"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Kort sikt Minimal försämring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Kort sikt Minimal försämring.*$","Försämring_minimal_kort"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Kort sikt Märkbar försämring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Kort sikt Märkbar försämring.*$","Försämring_märkbar_kort"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Kort sikt Minimal förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Kort sikt Minimal förbättring.*$","Förbättring_minimal_kort"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Kort sikt Märkbar förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Kort sikt Märkbar förbättring.*$","Förbättring_märkbar_kort"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Kort sikt Väsentlig förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Kort sikt Väsentlig förbättring.*$","Förbättring_väsentlig_kort"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Lång sikt Minimal försämring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Lång sikt Minimal försämring.*$","Försämring_minimal_lång"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Lång sikt Märkbar försämring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Lång sikt Märkbar försämring.*$","Försämring_märkbar_lång"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Lång sikt Minimal förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Lång sikt Minimal förbättring.*$","Förbättring_minimal_lång"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Lång sikt Märkbar förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Lång sikt Märkbar förbättring.*$","Förbättring_märkbar_lång"),
+ifelse(
+		str_detect(`Rapport ID: PK-SV`,"^.*?Lång sikt Väsentlig förbättring.*$"),
+                str_replace(`Rapport ID: PK-SV`,"^.*?Lång sikt Väsentlig förbättring.*$","Förbättring_väsentlig_lång"),`Rapport ID: PK-SV`
+))))))))))))))))))))))))))))))
+
+#Vi döper om våra kolumner till vettiga namn. 
+
+names(Underlag)<-c("variabel","värde")
+
+#Vi extraherar förra veckans värden ur "värde"-kolumnen och sätter i en annan kolumn. 
+
+Underlag<-Underlag%>%mutate(värde_förra=
+                                ifelse(
+                                    str_detect(värde,".*?\\d{1,} \\(\\d{1,}\\).*"),
+                                    str_replace(värde,".*?(\\d{1,}.*) \\((\\d{1,}.*)\\).*","\\2"),värde
+                                ))
+
+# Vi tilldelar alternativa värden till de siffror i värde_förra som vi inte har några uppgifter för.
+
+Underlag<-Underlag%>%mutate(värde_förra=
+                                ifelse(
+                                        str_detect(variabel,"Andel inrapporterade IVA"),"-200",
+                                ifelse(
+                                        str_detect(variabel,"Antal inrapporterade kommune"),"-200",
+                                ifelse(
+                                        str_detect(variabel,"Försämring_märkbar_kort"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Försämring_minimal_kort"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_minimal_kort"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_märkbar_kort"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_väsentlig_kort"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Försämring_märkbar_lång"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Försämring_minimal_lång"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_minimal_lång"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_märkbar_lång"),"0",
+                                ifelse(
+                                        str_detect(variabel,"Förbättring_väsentlig_lång"),"0",
+				ifelse(
+                                        str_detect(variabel,"Antal_kommuner_mellan_2_4_procent"),"-200",värde_förra))))))))))))),
+                            värde_förra=na_if(värde_förra,"-200"))
+
+# Vi tilldelar korrekt värde för förra veckans datum. 
+
+Underlag<-Underlag%>%mutate(värde_förra=
+                                ifelse(
+                                    str_detect(variabel,"Onsdagens datum"),as.character(as.Date(värde)-7),
+                                   värde_förra))
+
+# Vi plockar bort förra veckans siffror från värde-kolumnen.  
+
+Underlag<-Underlag%>%mutate(värde=
+                                ifelse(
+                                    str_detect(värde,"^.*?\\d{1,} \\(\\d{1,}\\).*$"),
+                                    str_replace(värde,"^.*?(\\d{1,}) \\(\\d{1,}\\).*$","\\1"),
+                                    ifelse(
+                                        str_detect(värde,"^.*?\\d{1,} \\(\\d{1,}%\\).*$"),
+                                        str_replace(värde,"^.*?(\\d{1,}) \\(\\d{1,}%\\).*$","\\1"),
+                                        ifelse(
+                                            str_detect(värde,"^.*?\\d{1,}%.*$"),
+                                            str_replace(värde,"^.*?(\\d{1,})%.*$","0.\\1"),värde
+))))
+
+Underlag<-as.data.frame(Underlag)
+
+#Vi gör kolumnerna "värde" och "värde_förra" numeriska. 
+
+Underlag<-Underlag%>%mutate(värde=
+        ifelse(
+            variabel=="Onsdagens datum",
+            as.numeric(as.Date(värde)),
+            as.numeric(värde)),
+    värde_förra=(
+        ifelse(
+            variabel=="Onsdagens datum",
+            as.numeric(as.Date(värde_förra)),
+            as.numeric(värde_förra))
+    ))
+
+row.names(Underlag)<-Underlag$variabel
+Underlag<-Underlag%>%select(-variabel)
+
+# Vi byter platser på rader och kolumner, och skapar ett nytt R-objekt. 
+
+rapport_datablad_test<-as.data.frame(t(Underlag))
+
+# Vi skriver om onsdagens datum på datumform och skapar nya variabler:
+
+rapport_datablad_test<-rapport_datablad_test%>%mutate(
+    `Onsdagens datum`=as.Date(`Onsdagens datum`,origin="1970-01-01"),
+    `Torsdagens datum`=`Onsdagens datum`+1,
+    `Icke-belagda IVA`=`Disponibla IVA-platser`-`Belagda IVA-platser`, 
+    'IVA Exkl COVID'=`Belagda IVA-platser`-Covidpatienter_IVA,
+	`Icke-belagda IVA procent`=paste0(as.character(round((`Icke-belagda IVA`/`Disponibla IVA-platser`)*100)),"%"))
+
+# Vi skapar nya variabler och tillskriver dem värden noll om de inte redan existerar i underlaget (antal regioner i förstärkningsläge osv)                                                      
+if (is.null(rapport_datablad_test$Antal_kommuner_mellan_2_4_procent
+)){rapport_datablad_test$Antal_kommuner_mellan_2_4_procent<-c(0:0)} 
+
+if (is.null(rapport_datablad_test$Antal_kommuner_över_1_procent
+)){rapport_datablad_test$Antal_kommuner_över_1_procent<-c(0:0)} 
+
+if (is.null(rapport_datablad_test$Antal_kommuner_över_4_procent
+)){rapport_datablad_test$Antal_kommuner_över_4_procent<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Försämring_märkbar_kort
+)){rapport_datablad_test$Försämring_märkbar_kort<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Försämring_minimal_kort
+)){rapport_datablad_test$Försämring_minimal_kort<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_minimal_kort
+)){rapport_datablad_test$Förbättring_minimal_kort<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_märkbar_kort
+)){rapport_datablad_test$Förbättring_märkbar_kort<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_väsentlig_kort
+)){rapport_datablad_test$Förbättring_väsentlig_kort<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Försämring_märkbar_lång
+)){rapport_datablad_test$Försämring_märkbar_lång<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Försämring_minimal_lång
+)){rapport_datablad_test$Försämring_minimal_lång<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_minimal_lång
+)){rapport_datablad_test$Förbättring_minimal_lång<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_märkbar_lång
+)){rapport_datablad_test$Förbättring_märkbar_lång<-c(0:0)}
+
+if (is.null(rapport_datablad_test$Förbättring_väsentlig_lång
+)){rapport_datablad_test$Förbättring_väsentlig_lång<-c(0:0)}
+
+rapport_datablad_test<-rapport_datablad_test
+}
+
+
+lista_bearb<-sapply(lista_underlag,bearbetning,simplify = FALSE,USE.NAMES = TRUE)
+
+rapport_datablad_test<-lista_bearb[["Underlag_Onsdag"]]
+Underlag_Torsdag<-lista_bearb[["Underlag_Torsdag"]]
+
+Underlag_Torsdag<-Underlag_Torsdag%>%arrange(desc(`Onsdagens datum`))
+rapport_datablad_test<-rapport_datablad_test%>%arrange(desc(`Onsdagens datum`))
+
+rapport_datablad_test<-rapport_datablad_test%>%
+    mutate(
+        `Antal inrapporterade kommuner`=Underlag_Torsdag$`Antal inrapporterade kommuner`,
+        Antal_smittade_brukare=Underlag_Torsdag$Antal_smittade_brukare,
+        Antal_kommuner_över_1_procent=Underlag_Torsdag$Antal_kommuner_över_1_procent,
+        Antal_kommuner_mellan_2_4_procent=Underlag_Torsdag$Antal_kommuner_mellan_2_4_procent,
+        Antal_kommuner_över_4_procent=Underlag_Torsdag$Antal_kommuner_över_4_procent)
+
+#rapport_datablad_test <- read_excel("Q:/7. Personliga mappar/Magnus Hansson/rapport_datablad_test.xlsx")
+#rapport_datablad_test<-rapport_datablad_test%>%arrange(desc(`Onsdagens datum`))
+
+#Vi skapar nya variabler och formatterar de gamla:
+
+rapport_datablad_test<-rapport_datablad_test%>%
+    arrange(desc(`Onsdagens datum`))%>%
+    mutate(
+        `Aktuell vecka`=strftime(`Onsdagens datum`, format = "%V"),
+        `onsdm`=strftime(`Onsdagens datum`, format = "%d/%m"),
+	`onsdmverb`=strftime(`Onsdagens datum`, format = "%d %B"),
+        `tordm`=strftime(`Torsdagens datum`, format = "%d/%m"),
+	`tordmverb`=strftime(`Torsdagens datum`, format = "%d %B"),
+        `onsdm`=gsub("0(\\d)","\\1",`onsdm`),
+        `tordm`=gsub("0(\\d)","\\1",`tordm`),
+        `Föregående vecka`=lead(`Aktuell vecka`),
+        `Aktuell vecka`=as.numeric(`Aktuell vecka`),
+        `andel_COVID_IVA`=`Covidpatienter_IVA`/`Belagda IVA-platser`,
+        Ändring_COVID_IVA=Covidpatienter_IVA-lead(Covidpatienter_IVA),
+        `Ändring IVA exkl covid`=`IVA Exkl COVID`-lead(`IVA Exkl COVID`),
+	`Antal patienter i slutenvård exkl. IVA_ändring`=rapport_datablad_test$`Antal patienter i slutenvård exkl. IVA`-lead(rapport_datablad_test$`Antal patienter i slutenvård exkl. IVA`),
+	Antal_smittade_brukare_förändring= Antal_smittade_brukare-lead(Antal_smittade_brukare),
+        Antal_smittade_brukare_förändring=as.numeric(Antal_smittade_brukare_förändring),
+        `Regioner kritisk påverkan`=as.character(`Regioner kritisk påverkan`),
+        `Regioner kritisk påverkan`=gsub("^0$","Ingen region",`Regioner kritisk påverkan`),
+        `Regioner kritisk påverkan`=gsub("^1$","1 region",`Regioner kritisk påverkan`),
+        `Regioner kritisk påverkan`=gsub("^(\\d+)$","\\1 regioner",`Regioner kritisk påverkan`),
+        `Regioner allvarlig påverkan`=as.character(`Regioner allvarlig påverkan`),
+        `Regioner allvarlig påverkan`=gsub("^0$","Ingen region",`Regioner allvarlig påverkan`),
+        `Regioner allvarlig påverkan`=gsub("^1$","1 region",`Regioner allvarlig påverkan`),
+        `Regioner allvarlig påverkan`=gsub("^(\\d+)$","\\1 regioner",`Regioner allvarlig påverkan`),
+        `Regioner betydande påverkan`=as.character(`Regioner betydande påverkan`),
+        `Regioner betydande påverkan`=gsub("^0$","Ingen region",`Regioner betydande påverkan`),
+        `Regioner betydande påverkan`=gsub("^1$","1 region",`Regioner betydande påverkan`),
+        `Regioner betydande påverkan`=gsub("^(\\d+)$","\\1 regioner",`Regioner betydande påverkan`),
+        `Regioner förstärkningsläge`=as.character(`Regioner förstärkningsläge`),
+        `Regioner förstärkningsläge`=gsub("^0$","Ingen region",`Regioner förstärkningsläge`),
+        `Regioner förstärkningsläge`=gsub("^1$","1 region",`Regioner förstärkningsläge`),
+        `Regioner förstärkningsläge`=gsub("^(\\d+)$","\\1 regioner",`Regioner förstärkningsläge`),
+        `Regioner stabsläge`=as.character(`Regioner stabsläge`),
+        `Regioner stabsläge`=gsub("^0$","ingen region",`Regioner stabsläge`),
+        `Regioner stabsläge`=gsub("^1$","1 region",`Regioner stabsläge`),
+        `Regioner stabsläge`=gsub("^(\\d+)$","\\1 regioner",`Regioner stabsläge`),
+        `Regioner normalläge`=as.character(`Regioner normalläge`),
+        `Regioner normalläge`=gsub("^0$","ingen region",`Regioner normalläge`),
+        `Regioner normalläge`=gsub("^1$","1 region",`Regioner normalläge`),
+        `Regioner normalläge`=gsub("^(\\d+)$","\\1 regioner",`Regioner normalläge`),
+        sammanlagd_förbättring=ifelse(
+            sum(Försämring_märkbar_kort,
+                Försämring_minimal_kort,
+                Försämring_märkbar_lång,
+                Försämring_minimal_lång)==0,
+                    "Samliga regioner",
+                    paste(as.character(sum(Förbättring_minimal_kort,
+                              Förbättring_märkbar_kort,
+                              Förbättring_väsentlig_kort,
+                              Förbättring_minimal_lång,
+                              Förbättring_märkbar_lång,
+                              Förbättring_väsentlig_lång),"regioner"))),
+        Sammanlagd_försämring=ifelse(sum(Försämring_märkbar_kort,
+                                         Försämring_minimal_kort,
+                                         Försämring_märkbar_lång,
+                                         Försämring_minimal_lång)==0,"",paste(as.character(
+                                             sum(Försämring_märkbar_kort,
+                                                 Försämring_minimal_kort,
+                                                 Försämring_märkbar_lång,
+                                                 Försämring_minimal_lång), "regioner rapporterar en förväntad försämring på lång eller kort sikt"
+                                         ))))%>%relocate(`Onsdagens datum`,onsdm,onsdmverb,`Torsdagens datum`,tordm,tordmverb,`Aktuell vecka`)
+
+
+# Vi skapar en tabell mer vilka regioner som rapporterar en förväntad förbättring respektive försämring. 
+
+tabell_försättring<-data.frame(
+    c(	paste("märkbar försämring",print(data$Försämring_märkbar_kort),"regioner             "),
+        paste("minimal försämring",print(data$Försämring_minimal_kort),"regioner             "),
+        paste("minimal förbättring",print(data$Förbättring_minimal_kort),"regioner             "),
+        paste("märkbar förbättring",print(data$Förbättring_märkbar_kort),"regioner             "),
+        paste("väsentlig förbättring",print(data$Förbättring_väsentlig_kort),"regioner             ")),
+    c(	paste("märkbar försämring",print(data$Försämring_märkbar_lång),"regioner"),
+        paste("minimal försämring",print(data$Försämring_minimal_lång),"regioner"),
+        paste("minimal förbättring",print(data$Förbättring_minimal_lång),"regioner"),
+        paste("märkbar förbättring",print(data$Förbättring_märkbar_lång),"regioner"),
+        paste("väsentlig förbättring",print(data$Förbättring_väsentlig_lång),"regioner")))   
+
+names(tabell_försättring)<-c("Kort sikt (24-72 timmar)","Lång sikt (10-15 dagar)")
+
+# Vi skapar en tabell där vi redovisar förändringen av patienter på IVA och i slutenvården exkl. IVA.
+
+tabell_förändring<-rapport_datablad_test%>%select("Disponibla IVA-platser","Belagda IVA-platser","Covidpatienter_IVA","Icke-belagda IVA")
+extra_rad_förändring<-Underlag_Torsdag%>%filter(row.names(.)=="värde")%>%select("Disponibla IVA-platser","Belagda IVA-platser","Covidpatienter_IVA","Icke-belagda IVA")
+
+tabell_förändring<-tabell_förändring%>%add_row(extra_rad_förändring,.before=1)
+
+tabell_förändring<-tabell_förändring%>%mutate(
+    `Andel i % med covid-19`=round((Covidpatienter_IVA/`Belagda IVA-platser`)*100),
+    `Lediga IVA-platser i %`=round((`Icke-belagda IVA`/`Disponibla IVA-platser`)*100),
+    `Antal ej covid-19 patienter`=`Belagda IVA-platser`-`Covidpatienter_IVA`)%>%relocate(
+    "Disponibla IVA-platser","Belagda IVA-platser","Covidpatienter_IVA",`Antal ej covid-19 patienter`,`Andel i % med covid-19`,`Icke-belagda IVA`,`Lediga IVA-platser i %`)%>%rename(
+	"Antal belagda IVA-platser"="Belagda IVA-platser",
+	"Antal covid-19 patienter"="Covidpatienter_IVA",
+	"Lediga IVA platser i antal"="Icke-belagda IVA")
+
+tabell_förändring<-as.data.frame(t(tabell_förändring))
+
+tabell_förändring<-tabell_förändring%>%rename(Torsdag=`...1`)
+
+tabell_förändring<-tabell_förändring%>%mutate(
+    Förändring=ifelse(rownames(.)=="Andel i % med covid-19"|rownames(.)=="Lediga IVA-platser i %",paste0(värde-värde_förra,"%"),paste0(
+        as.character(round(((värde-värde_förra)/värde_förra)*100)),"%")),
+    värde=as.character(värde),
+    värde=ifelse(rownames(.)=="Andel i % med covid-19"|rownames(.)=="Lediga IVA-platser i %",paste0(värde,"%"),värde),
+    värde_förra=as.character(värde_förra),
+    värde_förra=ifelse(rownames(.)=="Andel i % med covid-19"|rownames(.)=="Lediga IVA-platser i %",paste0(värde_förra,"%"),värde_förra))%>%mutate(
+        Torsdag=as.character(Torsdag),
+        Torsdag=ifelse(rownames(.)=="Andel i % med covid-19"|rownames(.)=="Lediga IVA-platser i %",paste0(Torsdag,"%"),Torsdag))%>%
+    relocate(
+        Torsdag,värde,värde_förra,Förändring)
+
+names(tabell_förändring)<-c(paste("Torsdag",as.character(max(Underlag_Torsdag$`Onsdagens datum`))),paste("Onsdag",as.character(max(rapport_datablad_test$`Onsdagens datum`))),paste("Onsdag",as.character(min(rapport_datablad_test$`Onsdagens datum`))),"Förändring ons-ons")
+
+tabell_förändring<-tabell_förändring%>%mutate("Läget på IVA"=row.names(.))%>%relocate("Läget på IVA")
+row.names(tabell_förändring)<-NULL

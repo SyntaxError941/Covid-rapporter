@@ -1,0 +1,169 @@
+---
+output: 
+  word_document:
+    reference_docx: style_reference_kortlage.docx
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,results='hide')
+```
+
+
+```{r load GlobalEnvoronment,include=FALSE} 
+library(dplyr)
+library(scales)
+library(flextable)
+library(kableExtra)
+library(officer)
+setwd("Q:\\7. Personliga mappar\\Magnus Hansson")
+load("workspace.RData")
+data<-rapport_datablad_test%>%filter(`Onsdagens datum`==max(`Onsdagens datum`))
+data_tidigare<-rapport_datablad_test%>%filter(`Aktuell vecka`==(max(`Aktuell vecka`)-1))
+Onsdag_datum<-data%>%select(`Onsdagens datum`)
+onsYYYYmmdd<-format(Onsdag_datum$`Onsdagens datum`,'%Y%m%d')
+torsdag_datum<-data$`Torsdagens datum`
+
+tabell_försättring<-data.frame(
+    c(	paste("märkbar försämring",print(data$Försämring_märkbar_kort),"regioner             "),
+        paste("minimal försämring",print(data$Försämring_minimal_kort),"regioner             "),
+        paste("minimal förbättring",print(data$Förbättring_minimal_kort),"regioner             "),
+        paste("märkbar förbättring",print(data$Förbättring_märkbar_kort),"regioner             "),
+        paste("väsentlig förbättring",print(data$Förbättring_väsentlig_kort),"regioner             ")),
+    c(	paste("märkbar försämring",print(data$Försämring_märkbar_lång),"regioner"),
+        paste("minimal försämring",print(data$Försämring_minimal_lång),"regioner"),
+        paste("minimal förbättring",print(data$Förbättring_minimal_lång),"regioner"),
+        paste("märkbar förbättring",print(data$Förbättring_märkbar_lång),"regioner"),
+        paste("väsentlig förbättring",print(data$Förbättring_väsentlig_lång),"regioner")))   
+
+names(tabell_försättring)<-c("Kort sikt (24-72 timmar)","Lång sikt (10-15 dagar)")
+
+properties1 <- fp_text(shading.color ="yellow", bold = TRUE)
+ftext1 <- ftext("hello", properties1)
+
+```
+
+---
+title: "KORT LÄGESRAPPORT `r onsYYYYmmdd`"
+---
+
+
+## Inledning: 
+Kort delbar lägesrapport från Socialstyrelsen som bygger på intensivvårdsdata från SIR den 
+`r data[,"onsdmverb"]` kl.11:30, samt kommun och regiondata från den `r data[,"onsdmverb"]` kl. 11:30.
+
+## Läget på IVA
+
+* **`r percent(unlist(data[,"Andel inrapporterade IVA"]))`** av landets intensivvårdsavdelningar har uppdaterat IVA-läget. 
+
+*	Disponibla IVA-platser nationellt den `r data[,"onsdm"]` var **`r data[,"Disponibla IVA-platser"]`** varav **`r data[,"Belagda IVA-platser"]`** av platserna är belagda.
+
+*	Av dessa är **`r data[,"Covidpatienter_IVA"]`** platser belagda med covid-19-patienter vilket innebär att **`r percent(unlist(data[,"andel_COVID_IVA"]))`** av patienterna som vårdas på IVA är covid-19-patienter, en `r if (data[,"Ändring_COVID_IVA"]>=0) {"ökning"} else {"minskning"}` med **`r abs(data[,"Ändring_COVID_IVA"])`** patienter på IVA sedan onsdagen den `r data_tidigare[,"onsdm"]` då **`r data_tidigare[,"Covidpatienter_IVA"]`** patienter med covid-19 låg på IVA. 
+
+*	Antal icke-covid-19 patienter på IVA är **`r data[,"IVA Exkl COVID"]`**, en **`r if (data[,"Ändring IVA exkl covid"]>=0) {"ökning"} else {"minskning"}` med `r abs(data[,"Ändring IVA exkl covid"])`** patienter sedan onsdagen den `r data_tidigare[,"onsdm"]` då **`r data_tidigare[,"IVA Exkl COVID"]`** patienter utan covid-19 låg på IVA.
+
+*	Det finns **`r data[,"Icke-belagda IVA"]`** icke belagda IVA-platser, vilket motsvarar en ledig kapacitet på **`r data[,"Icke-belagda IVA procent"]`** som dock är ojämnt fördelad mellan regionerna.
+
+
+*	**`r data[,"Antal regioner 10-20%"]`** regioner rapporterar **10- 20%** ledig IVA kapacitet och 
+**`r data[,"Antal regioner <10%"]`** regioner rapporterar under **<10%** ledig IVA kapacitet. 
+
+
+* **`r data[,"Antal regioner COVID-patienter IVA"]`** av 21 regioner har covid-19-patienter på IVA.  
+
+
+```{r results='show'} 
+tabell_förändring_df<-tabell_förändring
+tabell_förändring<-flextable(tabell_förändring)
+tabell_förändring <- width(tabell_förändring, width = 2,j=1)
+
+if (ncol(tabell_förändring_df)>4){
+tabell_förändring <- width(tabell_förändring, width = 1,j=2:5)
+tabell_förändring<-align(tabell_förändring,j=2:5, part="all", align = "center")} else {
+tabell_förändring <- width(tabell_förändring, width = 1,j=2:4)
+tabell_förändring<-align(tabell_förändring,j=2:4, part="all", align = "center")}
+
+brdr <- fp_border(color = "#000000", width = 1.25)
+tabell_förändring<-border_inner(tabell_förändring, border = brdr)
+tabell_förändring<-border_outer(tabell_förändring, border = brdr)
+tabell_förändring<-padding(tabell_förändring, padding = 1.75)
+tabell_förändring<-font(tabell_förändring,part="all",fontname = "Times New Roman")
+tabell_förändring<-fontsize(tabell_förändring, part= "all", size = 12)
+tabell_förändring<-bold(tabell_förändring, part="header", bold = TRUE)
+tabell_förändring<-bg(tabell_förändring,part="header",bg = "#ddebf7")
+
+tabell_förändring
+```
+
+## Läget på slutenvården exklusive IVA:
+
+<span custom-style="gulforever">SKRIV IN ANTAL</span> av **21** regioner har uppdaterat läget.
+
+*	Onsdag den **`r data[,"onsdmverb"]`** rapporterades **`r data[,"Antal patienter i slutenvård exkl. IVA"]`** covid-19-patienter i slutenvården exkl. IVA. 
+
+*	Onsdag den **`r data_tidigare[,"onsdmverb"]`** rapporterades totalt **`r data_tidigare[,"Antal patienter i slutenvård exkl. IVA"]`** covid-19-patienter i slutenvården exkl. IVA, en `r if (data[,"Antal patienter i slutenvård exkl. IVA_ändring"]>=0) {"ökning"} else {"minskning"}` med med **`r abs(data[,"Antal patienter i slutenvård exkl. IVA_ändring"])`** patient under den senaste 7-dagarsperioden.
+
+
+
+
+
+## Påverkan regionalt:
+
+**`r data[,"Regioner kritisk påverkan"]`** rapporterar **kritisk påverkan** kopplat till covid-19 inom något av de områden SoS följer. 
+
+**`r data[,"Regioner allvarlig påverkan"]`** rapporterar **allvarlig påverkan** inom ett eller flera områden.
+
+**`r data[,"Regioner betydande påverkan"]`** rapporterar **betydande påverkan** på ett eller flera områden. 
+
+## Regioner rapporterar bla om: 
+
+*	Utplanande trend av covid-19-patienter, men fortsatt ansträngt vårdplatsläge som ej är relaterat till covid-19.  
+*	Fortsatt oro för uthållighet och bemanningsläget för sommaren på intensivvårdsavdelningarna.
+*	Fortsatt påverkan på ordinarie verksamhet, stor vårdskuld att hantera.
+*	Fortsatt hög belastning på kommunikation avseende vaccination, smittläge och särskilda rekommendationer. 
+*	Flytt av IVA-patienter inom och mellan regionerna fortgår.
+
+## Regional särskild sjukvårdsledning:
+
+**`r data[,"Regioner förstärkningsläge"]`** är i förstärkningsläge, **`r data[,"Regioner stabsläge"]`** regioner är i stabsläge och **`r data[,"Regioner normalläge"]`** regioner är i normalläge.
+
+## Förväntat läge i regionerna:
+
+`r if (sum(data[,"Försämring_märkbar_kort"],data[,"Försämring_minimal_kort"],data[,"Försämring_märkbar_lång"],data[,"Försämring_minimal_lång"])==0){"Samtliga regioner rapporterar en förväntad förbättring av läget på kort och lång sikt."} else if (sum(data[,"Försämring_märkbar_kort"],data[,"Försämring_minimal_kort"],data[,"Försämring_märkbar_lång"],data[,"Försämring_minimal_lång"])==42) {"Samtliga regioner rapporterar en förväntad försämring av läget på kort och lång sikt."} else {paste(as.character(sum(data[,"Förbättring_minimal_kort"],data[,"Förbättring_märkbar_kort"],data[,"Förbättring_väsentlig_kort"])),"regioner förväntar sig en förbättring på kort sikt medan",as.character(sum(data[,"Försämring_märkbar_kort"],data[,"Försämring_minimal_kort"])), "regioner förväntar sig en försämring.", as.character(sum(data[,"Förbättring_minimal_lång"],data[,"Förbättring_märkbar_lång"],data[,"Förbättring_väsentlig_lång"])),"regioner förväntar sig en förbättring på lång sikt medan",as.character(sum(data[,"Försämring_märkbar_lång"], data[,"Försämring_minimal_lång"])), "regioner förväntar sig en försämring.")}
+`
+
+```{r results='show', ft.align="left"} 
+
+tabell_försättring<-flextable(tabell_försättring)
+tabell_försättring <- width(tabell_försättring, width = 3)
+tabell_försättring<-font(tabell_försättring,part="all",fontname = "Times New Roman")
+tabell_försättring<-fontsize(tabell_försättring, part= "all", size = 12)
+tabell_försättring<-bold(tabell_försättring, part="header", bold = TRUE)
+tabell_försättring
+
+
+```
+
+
+### Sammanfattning:
+
+Antalet covid-19-patienter på IVA har ökat sedan förra veckan. Antalet covid-19-patienter i slutenvården exklusive IVA har även det ökat något. Det totala antalet IVA-patienter är nu i något högre än genomsnittet under motsvarande tid innan pandemin. Det finns fortsatt behov av att flytta IVA-patienter mellan regioner för att klara den nationella IVA-resursen. 
+
+## Läget i landets kommuner: 
+
+Från inrapporterad data mellan den `r data_tidigare[,"onsdm"]` – `r data[,"onsdm"]` (v`r data_tidigare[,"Aktuell vecka"]`– v`r data[,"Aktuell vecka"]`).
+(`r data[,"Antal inrapporterade kommuner"]` av 290 (`r round((data[,"Antal inrapporterade kommuner"]/290)*100)`%) kommuner har rapporterat).
+
+**Ingen** kommun rapporterar kritisk eller allvarlig påverkan inom ett eller flera områden socialstyrelsen följer.
+
+Antalet smittade patienter och brukare **`r if (data[,"Antal_smittade_brukare_förändring"]>=0) {"ökar"} else if (data[,"Antal_smittade_brukare_förändring"]<=0) {"minskar"} else {"är oförändrat"}`** från **`r data_tidigare[,"Antal_smittade_brukare"]`** v`r data_tidigare[,"Aktuell vecka"]` till **`r data[,"Antal_smittade_brukare"]`** v`r data[,"Aktuell vecka"]`, dvs. en `r if (data[,"Antal_smittade_brukare_förändring"]>=0) {"ökning"} else {"minskning"}` med **`r abs(data[,"Antal_smittade_brukare_förändring"])`** personer.
+
+**`r data[,"Antal_kommuner_över_1_procent"]`** kommuner rapporterar över 1% smittade patienter och brukare.`r if (data[,"Antal_kommuner_mellan_2_4_procent"]>0){paste(data[,"Antal_kommuner_mellan_2_4_procent"], "kommuner rapporterar mellan 2 och 4 procent smittade.")}` `r if (data[,"Antal_kommuner_över_4_procent"]>0){paste(data[,"Antal_kommuner_över_4_procent"], "kommuner rapporterar mellan 2 och 4 procent smittade.")}``
+
+## Förväntat läge i kommunerna:
+
+Majoriteten av kommunerna rapporterar en förväntad förbättring av läget både på kort och lång sikt.
+
+### Sammanfattning kommunerna:
+
+Stabilt läge i kommunerna. Vissa kommuner rapporterar oro för ökad samhällssmitta. Fortsatt an-strängd personalförsörjning, många kommuner rapporterar hög arbetsbelastning och vikariebrist. Flera kommuner är oroliga över att smitta ska spridas i verksamheterna när personal kommer tillbaka efter semestern.
+
+Ytterligare underlag finns på Socialstyrelsens hemsida. Slut lägesrapport.
